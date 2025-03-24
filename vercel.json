@@ -8,6 +8,15 @@
     ],
     "routes": [
         {
+            "src": "/webhook",
+            "dest": "/main.py",
+            "methods": ["POST"],
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "POST"
+            }
+        },
+        {
             "src": "/(.*)",
             "dest": "/main.py"
         }
