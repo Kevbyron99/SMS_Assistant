@@ -1,0 +1,11 @@
+aiohttp>=3.11.14
+airtable-python-wrapper>=0.15.3
+asgiref>=3.8.1
+email-validator>=2.0.0
+flask>=3.1.0
+flask-sqlalchemy>=3.1.1
+gunicorn>=23.0.0
+openai>=1.67.0
+psycopg2-binary>=2.9.10
+twilio>=9.5.1
+python-dotenv>=1.0.0 

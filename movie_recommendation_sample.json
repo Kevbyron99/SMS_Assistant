@@ -1,0 +1,8 @@
+{
+  "type": "movie_recommendations",
+  "success": true,
+  "timestamp": "2025-03-24T10:34:56.454912",
+  "category": "Popular Movies You Haven't Seen",
+  "count": 0,
+  "movies": []
+}
