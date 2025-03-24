@@ -130,6 +130,18 @@ def test():
         "environment": os.getenv('ENVIRONMENT', 'development')
     }
 
+@app.route("/test-post", methods=['POST'])
+def test_post():
+    logger.info("=== TEST POST ENDPOINT HIT ===")
+    logger.info(f"Headers: {dict(request.headers)}")
+    logger.info(f"Form Data: {dict(request.form)}")
+    return {
+        "status": "ok",
+        "message": "POST request received",
+        "headers": dict(request.headers),
+        "form_data": dict(request.form)
+    }
+
 async def handle_sms_request(request):
     try:
         request_data = {
