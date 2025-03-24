@@ -59,16 +59,34 @@ def home():
 
 @app.route("/webhook", methods=['POST'])
 async def webhook():
-    logger.info("Webhook endpoint hit")
-    logger.info(f"Request headers: {dict(request.headers)}")
-    logger.info(f"Request form data: {dict(request.form)}")
+    logger.info("=== Webhook Request Received ===")
+    logger.info(f"Request Method: {request.method}")
+    logger.info(f"Request URL: {request.url}")
+    logger.info(f"Request Headers: {dict(request.headers)}")
+    logger.info(f"Request Form Data: {dict(request.form)}")
+    
     try:
+        # Log Twilio signature
+        twilio_signature = request.headers.get('X-Twilio-Signature', 'Not Present')
+        logger.info(f"Twilio Signature: {twilio_signature}")
+        
+        # Log validation attempt
+        is_valid = validate_twilio_request()
+        logger.info(f"Request Validation Result: {is_valid}")
+        
+        if not is_valid:
+            logger.error("Request validation failed - aborting with 403")
+            abort(403)
+            
         response = await handle_sms_request(request)
-        logger.info(f"Webhook response: {response}")
+        logger.info(f"Webhook Response Generated: {response}")
         return response
+        
     except Exception as e:
-        logger.error(f"Webhook error: {str(e)}")
-        raise
+        logger.error(f"Webhook Error: {str(e)}")
+        logger.error(f"Error Type: {type(e).__name__}")
+        logger.error(f"Error Traceback: {str(e.__traceback__)}")
+        return {"error": str(e)}, 500
 
 @app.route("/test-webhook", methods=['POST'])
 async def test_webhook():
@@ -104,55 +122,50 @@ async def handle_sms_request(request):
             'headers': dict(request.headers),
             'form_data': dict(request.form)
         }
-        logger.info(f"Processing SMS request: {request_data}")
-
-        # Validate the request is from Twilio
-        if not validate_twilio_request():
-            logger.error("Request validation failed")
-            log_request({'error': 'Request validation failed'}, level="ERROR")
-            abort(403)
+        logger.info(f"=== Processing SMS Request ===")
+        logger.info(f"Request Data: {request_data}")
 
         # Get the message details
         incoming_msg = request.form.get('Body', '')
         from_number = request.form.get('From', '')
-        logger.info(f"Received message from {from_number}: {incoming_msg}")
+        logger.info(f"Message Details - From: {from_number}, Body: {incoming_msg}")
 
         if not incoming_msg:
             logger.warning("No message body received")
-            log_request({'warning': 'No message body received'}, level="WARNING")
             resp = MessagingResponse()
             resp.message("Sorry, I couldn't understand your message")
             return str(resp)
 
         # Parse message using OpenAI
+        logger.info("Starting OpenAI message parsing")
         parser = MessageParser()
-        from_number = request.form.get('From', 'default')
-        logger.info("Parsing message with OpenAI")
         result = await parser.parse_message(incoming_msg, from_number)
         if asyncio.iscoroutine(result):
             result = await result
-        logger.info(f"OpenAI parsing result: {result}")
+        logger.info(f"OpenAI Parsing Result: {result}")
         
         # Create response
         resp = MessagingResponse()
         response_text = result['parameters'] if isinstance(result['parameters'], str) else result['parameters'].get('ai_response', str(result['parameters']))
-        logger.info(f"Generated response: {response_text}")
+        logger.info(f"Generated Response Text: {response_text}")
         
         # Store conversation in Airtable
+        logger.info("Attempting to store conversation in Airtable")
         from services.airtable_service import AirtableService
         airtable = AirtableService()
-        logger.info("Storing conversation in Airtable")
-        airtable.store_conversation(from_number, incoming_msg, response_text)
+        airtable_result = airtable.store_conversation(from_number, incoming_msg, response_text)
+        logger.info(f"Airtable Storage Result: {airtable_result}")
         
         resp.message(response_text)
-        log_request({'response': response_text})
-        return str(resp)
+        final_response = str(resp)
+        logger.info(f"Final Response XML: {final_response}")
+        return final_response
 
     except Exception as e:
-        error_msg = f"Webhook error: {str(e)}"
-        logger.exception(error_msg)
-        log_request({'error': error_msg, 'traceback': str(e.__traceback__)}, level="ERROR")
-        return {"error": error_msg}, 500
+        logger.error(f"Handle SMS Request Error: {str(e)}")
+        logger.error(f"Error Type: {type(e).__name__}")
+        logger.error(f"Error Traceback: {str(e.__traceback__)}")
+        return {"error": str(e)}, 500
 
 # For local development
 if __name__ == "__main__":
