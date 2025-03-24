@@ -27,6 +27,7 @@ def log_request(request_data: dict, level: str = "INFO"):
     else:
         logger.info(log_entry)
 
+# Create Flask app
 app = Flask(__name__)
 
 # Twilio credentials 
@@ -54,7 +55,7 @@ def validate_twilio_request():
 
 @app.route("/")
 def home():
-    return "SMS Assistant is running!"
+    return "Welcome to SMS Assistant!"
 
 @app.route("/webhook", methods=['POST'])
 async def webhook():
@@ -129,6 +130,7 @@ async def handle_sms_request(request):
         log_request({'error': error_msg, 'traceback': str(e.__traceback__)}, level="ERROR")
         return {"error": error_msg}, 500
 
+# For local development
 if __name__ == "__main__":
     port = int(os.getenv('PORT', 5000))
     print(f"\nServer starting on port {port}")
