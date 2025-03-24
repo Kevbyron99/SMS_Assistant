@@ -59,34 +59,50 @@ def home():
 
 @app.route("/webhook", methods=['POST'])
 async def webhook():
-    logger.info("=== Webhook Request Received ===")
+    logger.info("\n=== DETAILED WEBHOOK REQUEST INFO ===")
+    logger.info(f"Timestamp: {datetime.now().isoformat()}")
     logger.info(f"Request Method: {request.method}")
     logger.info(f"Request URL: {request.url}")
-    logger.info(f"Request Headers: {dict(request.headers)}")
-    logger.info(f"Request Form Data: {dict(request.form)}")
+    logger.info(f"Full URL: {request.url_root + 'webhook'}")
+    logger.info("Headers:")
+    for header, value in request.headers.items():
+        logger.info(f"  {header}: {value}")
+    logger.info("Form Data:")
+    for key, value in request.form.items():
+        logger.info(f"  {key}: {value}")
+    logger.info("Query Parameters:")
+    for key, value in request.args.items():
+        logger.info(f"  {key}: {value}")
     
     try:
-        # Log Twilio signature
+        # Log Twilio signature verification attempt
         twilio_signature = request.headers.get('X-Twilio-Signature', 'Not Present')
-        logger.info(f"Twilio Signature: {twilio_signature}")
+        logger.info(f"\nTwilio Signature Verification:")
+        logger.info(f"  Signature: {twilio_signature}")
+        logger.info(f"  Account SID configured: {'Yes' if account_sid else 'No'}")
+        logger.info(f"  Auth Token configured: {'Yes' if auth_token else 'No'}")
         
-        # Log validation attempt
+        # Validate request
         is_valid = validate_twilio_request()
-        logger.info(f"Request Validation Result: {is_valid}")
+        logger.info(f"  Request Validation Result: {is_valid}")
         
         if not is_valid:
-            logger.error("Request validation failed - aborting with 403")
-            abort(403)
+            logger.error("Request validation failed - returning 403")
+            return "Invalid request signature", 403
             
+        # Process the message
         response = await handle_sms_request(request)
-        logger.info(f"Webhook Response Generated: {response}")
+        logger.info("\nResponse Generated:")
+        logger.info(f"  {response}")
         return response
         
     except Exception as e:
-        logger.error(f"Webhook Error: {str(e)}")
+        logger.error("\n=== WEBHOOK ERROR ===")
         logger.error(f"Error Type: {type(e).__name__}")
-        logger.error(f"Error Traceback: {str(e.__traceback__)}")
-        return {"error": str(e)}, 500
+        logger.error(f"Error Message: {str(e)}")
+        import traceback
+        logger.error(f"Traceback:\n{traceback.format_exc()}")
+        return {"error": "Internal server error", "details": str(e)}, 500
 
 @app.route("/test-webhook", methods=['POST'])
 async def test_webhook():
