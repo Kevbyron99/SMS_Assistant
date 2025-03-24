@@ -2,23 +2,14 @@
     "version": 2,
     "builds": [
         {
-            "src": "main.py",
+            "src": "api/webhook.py",
             "use": "@vercel/python"
         }
     ],
     "routes": [
         {
             "src": "/webhook",
-            "dest": "/main.py",
-            "methods": ["POST"],
-            "headers": {
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "POST"
-            }
-        },
-        {
-            "src": "/(.*)",
-            "dest": "/main.py"
+            "dest": "api/webhook.py"
         }
     ],
     "functions": {
