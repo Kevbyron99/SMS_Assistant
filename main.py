@@ -59,50 +59,56 @@ def home():
 
 @app.route("/webhook", methods=['POST'])
 async def webhook():
-    logger.info("\n=== DETAILED WEBHOOK REQUEST INFO ===")
-    logger.info(f"Timestamp: {datetime.now().isoformat()}")
-    logger.info(f"Request Method: {request.method}")
-    logger.info(f"Request URL: {request.url}")
-    logger.info(f"Full URL: {request.url_root + 'webhook'}")
-    logger.info("Headers:")
-    for header, value in request.headers.items():
-        logger.info(f"  {header}: {value}")
-    logger.info("Form Data:")
-    for key, value in request.form.items():
-        logger.info(f"  {key}: {value}")
-    logger.info("Query Parameters:")
-    for key, value in request.args.items():
-        logger.info(f"  {key}: {value}")
+    logger.info("\n=== WEBHOOK REQUEST RECEIVED ===")
     
     try:
-        # Log Twilio signature verification attempt
+        # Create a simple TwiML response first
+        resp = MessagingResponse()
+        
+        # Log request details
+        logger.info(f"Request Method: {request.method}")
+        logger.info(f"Request URL: {request.url}")
+        logger.info(f"Headers: {dict(request.headers)}")
+        logger.info(f"Form Data: {dict(request.form)}")
+        
+        # Validate request if needed
         twilio_signature = request.headers.get('X-Twilio-Signature', 'Not Present')
-        logger.info(f"\nTwilio Signature Verification:")
-        logger.info(f"  Signature: {twilio_signature}")
-        logger.info(f"  Account SID configured: {'Yes' if account_sid else 'No'}")
-        logger.info(f"  Auth Token configured: {'Yes' if auth_token else 'No'}")
+        logger.info(f"Twilio Signature: {twilio_signature}")
         
-        # Validate request
-        is_valid = validate_twilio_request()
-        logger.info(f"  Request Validation Result: {is_valid}")
+        # Get the message content
+        incoming_msg = request.form.get('Body', '')
+        from_number = request.form.get('From', '')
         
-        if not is_valid:
-            logger.error("Request validation failed - returning 403")
-            return "Invalid request signature", 403
+        if not incoming_msg:
+            resp.message("Sorry, I couldn't understand your message")
+            return str(resp), 200, {'Content-Type': 'text/xml'}
             
         # Process the message
-        response = await handle_sms_request(request)
-        logger.info("\nResponse Generated:")
-        logger.info(f"  {response}")
-        return response
+        try:
+            parser = MessageParser()
+            result = await parser.parse_message(incoming_msg, from_number)
+            if asyncio.iscoroutine(result):
+                result = await result
+            
+            response_text = result['parameters'] if isinstance(result['parameters'], str) else result['parameters'].get('ai_response', str(result['parameters']))
+            resp.message(response_text)
+            
+        except Exception as e:
+            logger.error(f"Message processing error: {str(e)}")
+            resp.message("I'm having trouble processing your message. Please try again.")
+        
+        # Always return a valid TwiML response
+        return str(resp), 200, {'Content-Type': 'text/xml'}
         
     except Exception as e:
-        logger.error("\n=== WEBHOOK ERROR ===")
+        logger.error(f"\n=== WEBHOOK ERROR ===")
         logger.error(f"Error Type: {type(e).__name__}")
         logger.error(f"Error Message: {str(e)}")
-        import traceback
-        logger.error(f"Traceback:\n{traceback.format_exc()}")
-        return {"error": "Internal server error", "details": str(e)}, 500
+        
+        # Even on error, return a valid TwiML response
+        error_resp = MessagingResponse()
+        error_resp.message("An error occurred. Please try again later.")
+        return str(error_resp), 200, {'Content-Type': 'text/xml'}
 
 @app.route("/test-webhook", methods=['POST'])
 async def test_webhook():
